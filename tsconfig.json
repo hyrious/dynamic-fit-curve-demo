@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "jsx": "react",
+        "noEmit": true,
+        "esModuleInterop": true,
+        "target": "ESNext",
+        "module": "ESNext",
+        "skipLibCheck": true,
+        "lib": ["ESNext", "DOM"],
+        "strict": true,
+        "noImplicitAny": true
+    }
+}
