@@ -1,6 +1,6 @@
 import React, { StrictMode, useEffect, useRef } from "react";
 import { render } from "react-dom";
-import { usePencil } from "./src/Pencil";
+import { DescForLastPathType, LastPathType, usePencil } from "./src/Pencil";
 
 function App() {
     const pencil = usePencil();
@@ -61,6 +61,26 @@ function App() {
                         }}
                     />
                     <label htmlFor="debug">Debug (show points &amp; current path):</label>
+                </div>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        lineHeight: 1.58,
+                    }}
+                >
+                    <span>LastPathType:</span>
+                    <select
+                        value={pencil.lastPathType}
+                        onChange={(e) => {
+                            pencil.lastPathType = e.target.value as LastPathType;
+                        }}
+                        style={{ margin: "0 .5em" }}
+                    >
+                        <option value="curve">{DescForLastPathType.curve}</option>
+                        <option value="rough">{DescForLastPathType.rough}</option>
+                        <option value="alt">{DescForLastPathType.alt}</option>
+                    </select>
                 </div>
             </div>
             <div
