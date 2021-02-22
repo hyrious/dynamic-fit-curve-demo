@@ -175,7 +175,7 @@ function fitCubic(
     // want to use as a tangent would be 0. Instead, we calculate the line from
     // that "double-point" to the center point, and use its tangent.
     if (centerVector.x === 0 && centerVector.y === 0) {
-        //[x,y] -> [-y,x]: http://stackoverflow.com/a/4780141/1869660
+        // [x,y] -> [-y,x]: http://stackoverflow.com/a/4780141/1869660
         const { x, y } = sub(points[splitPoint - 1], points[splitPoint]);
         centerVector = { x: -y, y: x };
     }
@@ -370,7 +370,7 @@ function chordLengthParameterize(points: Points): number[] {
         prevU = currU;
         prevP = p;
     });
-    u = u.map((x) => x / prevU);
+    u = u.map((x) => (prevU === 0 ? 0 : x / prevU));
 
     return u;
 }
