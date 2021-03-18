@@ -14,7 +14,7 @@ export class Pencil {
 
     private _maxError = Pencil.DefaultMaxError;
     private _showPoints = true;
-    private _lastPathType: LastPathType = "alt";
+    private _lastPathType: LastPathType = "rough";
 
     private isDrawing = false;
     private offsetLeft = 0;
