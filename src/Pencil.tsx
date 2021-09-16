@@ -1,4 +1,8 @@
 import React, { Component } from "react";
+import FitCurve from "./fit-curve-worker?worker";
+
+const fitCurve = new FitCurve();
+(window as any).fitCurve = fitCurve;
 
 interface Props {
     container: HTMLDivElement;
