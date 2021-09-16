@@ -8,6 +8,8 @@
         "skipLibCheck": true,
         "lib": ["ESNext", "DOM"],
         "strict": true,
-        "noImplicitAny": true
+        "noImplicitAny": true,
+        "moduleResolution": "Node",
+        "types": ["vite/client"]
     }
 }
