@@ -21,5 +21,9 @@ text.info {
     user-select: none;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
+    background-color: #ddd;
+    border: 1px solid #777;
+    padding: 1ch 2ch 1ch 1ch;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) inset;
 }

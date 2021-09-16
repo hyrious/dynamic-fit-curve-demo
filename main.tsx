@@ -1,4 +1,4 @@
-import React, { StrictMode, useEffect, useRef, useState } from "react";
+import React, { StrictMode, useEffect, useState } from "react";
 import { render } from "react-dom";
 import Pencil from "./src/Pencil";
 import "./style.css";
@@ -24,3 +24,9 @@ function App() {
 }
 
 render(<StrictMode children={<App />} />, document.getElementById("app"));
+
+if (location.hostname === "localhost") {
+    navigator.serviceWorker?.getRegistration().then(r => {
+        r?.unregister();
+    });
+}
