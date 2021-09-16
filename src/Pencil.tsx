@@ -1,243 +1,137 @@
-import React, { useState } from "react";
-import { Curve, fitCurve, Point } from "./fit-curve";
+import React, { Component } from "react";
 
-export type LastPathType = "curve" | "rough" | "alt";
+interface Props {
+    container: HTMLDivElement;
+    size: { width: number; height: number };
+}
 
-export const DescForLastPathType: Record<LastPathType, string> = {
-    curve: "fit curve 的最后一段曲线（已缓存）",
-    rough: "直接连折线",
-    alt: "去掉一部分点，再计算 fit curve",
-};
+interface State {
+    reset: boolean;
+    points: { x: number; y: number }[];
+    type: "L" | "Q";
+}
 
-export class Pencil {
-    public static DefaultMaxError = 5;
-
-    private _maxError = Pencil.DefaultMaxError;
-    private _showPoints = true;
-    private _lastPathType: LastPathType = "rough";
-
-    private isDrawing = false;
-    private offsetLeft = 0;
-    private offsetTop = 0;
-    private path: Point[] = [];
-    private activeCurve?: Curve;
-    private curves: Curve[] = [];
-    private width = 0;
-    private height = 0;
-    private dropCount = 0;
-
-    public get curvesLength() {
-        return this.curves.length;
+export default class Pencil extends Component<Props, State> {
+    constructor(props: Props) {
+        super(props);
+        this.state = { reset: true, points: [], type: "L" };
     }
 
-    public get pathLength() {
-        return this.path.length;
+    componentDidMount() {
+        const { container } = this.props;
+        if (!container) return;
+        container.addEventListener("pointerdown", this.handler);
+        container.addEventListener("pointermove", this.handler);
+        container.addEventListener("pointerup", this.handler);
+        container.addEventListener("touchmove", this.preventDefault, { passive: false });
     }
 
-    public get maxError() {
-        return this._maxError;
+    componentWillUnmount() {
+        const { container } = this.props;
+        container.removeEventListener("pointerdown", this.handler);
+        container.removeEventListener("pointermove", this.handler);
+        container.removeEventListener("pointerup", this.handler);
+        container.removeEventListener("touchmove", this.preventDefault);
     }
 
-    public set maxError(val: number) {
-        this._maxError = val;
-        this.forceUpdate();
-    }
-
-    public get showPoints() {
-        return this._showPoints;
-    }
-
-    public set showPoints(val: boolean) {
-        this._showPoints = val;
-        this.forceUpdate();
-    }
-
-    public get lastPathType() {
-        return this._lastPathType;
-    }
-
-    public set lastPathType(val: LastPathType) {
-        this._lastPathType = val;
-        this.forceUpdate();
-    }
-
-    public get reducedRate() {
-        return this.dropCount > 0 ? 1 - this.curves.length / this.dropCount : 0;
-    }
-
-    public constructor(private readonly forceUpdate: () => void) {}
-
-    public mount(container: HTMLDivElement) {
-        const { offsetLeft, offsetTop } = container;
-        const { width, height } = container.getBoundingClientRect();
-        this.width = width;
-        this.height = height;
-        this.offsetLeft = offsetLeft;
-        this.offsetTop = offsetTop;
-        container.addEventListener("mousedown", this.mousedown);
-        container.addEventListener("mousemove", this.mousemove);
-        container.addEventListener("mouseup", this.mouseup);
-        container.addEventListener("mouseleave", this.mouseup);
-        container.addEventListener("touchstart", this.touchstart);
-        container.addEventListener("touchmove", this.touchmove, false);
-        container.addEventListener("touchend", this.mouseup);
-        container.addEventListener("touchcancel", this.mouseup);
-    }
-
-    public unmount() {
-        this.offsetLeft = 0;
-        this.offsetTop = 0;
-    }
-
-    private touchstart = ({ touches }: TouchEvent) => {
-        this.mousedown({ x: touches[0].clientX, y: touches[0].clientY } as MouseEvent);
-    };
-
-    private touchmove = (e: TouchEvent) => {
+    preventDefault = (e: TouchEvent) => {
         e.preventDefault();
-        this.mousemove({ x: e.touches[0].clientX, y: e.touches[0].clientY } as MouseEvent);
     };
 
-    private mousedown = ({ x, y }: MouseEvent) => {
-        const point = {
-            x: x - this.offsetLeft,
-            y: y - this.offsetTop,
-        };
-        this.path = [point];
-        this.isDrawing = true;
-        this.curves = [];
-        this.activeCurve = undefined;
-        this.dropCount = 0;
-    };
-
-    private mousemove = ({ x, y }: MouseEvent) => {
-        if (this.isDrawing) {
-            const point = {
-                x: x - this.offsetLeft,
-                y: y - this.offsetTop,
-            };
-            this.path.push(point);
-            this.invalidate();
+    handler = (e: PointerEvent) => {
+        e.preventDefault();
+        if (!e.isPrimary) {
+            return;
+        }
+        if (!e.pressure) {
+            this.setState({ reset: true });
+        } else {
+            const { container } = this.props;
+            const { offsetTop, offsetLeft } = container;
+            const { reset, points } = this.state;
+            this.setState({
+                reset: false,
+                points: (reset ? [] : points).concat([
+                    {
+                        x: (e.x - offsetLeft) | 0,
+                        y: (e.y - offsetTop) | 0,
+                    },
+                ]),
+            });
         }
     };
 
-    private mouseup = () => {
-        this.isDrawing = false;
-        this.invalidate(true);
-    };
-
-    private invalidate(isMouseUp = false) {
-        const [curves, splitAt] = fitCurve(this.path, this.maxError);
-        if (isMouseUp) {
-            this.dropCount += this.path.length;
-            this.curves.push(...curves);
-            this.path = [];
-            this.activeCurve = undefined;
-        } else if (curves.length > 1) {
-            this.dropCount += splitAt;
-            this.curves.push(...curves.splice(0, curves.length - 1));
-            this.path.splice(0, splitAt);
-            this.activeCurve = curves[0];
-        } /* curves.length <= 1 */ else {
-            this.activeCurve = curves[0];
-        }
-        this.forceUpdate();
-    }
-
-    private renderCurvesPathString() {
-        const parts: string[] = [];
-        for (let i = 0; i < this.curves.length; ++i) {
-            const [
-                { x, y },
-                { x: c1x, y: c1y },
-                { x: c2x, y: c2y },
-                { x: dx, y: dy },
-            ] = this.curves[i];
-            if (i === 0) parts.push(`M${x} ${y}`);
-            parts.push(`C${c1x} ${c1y} ${c2x} ${c2y} ${dx} ${dy}`);
-        }
-        return parts.join("");
-    }
-
-    private renderActivePathString() {
-        if (this.activeCurve) {
-            const [
-                { x, y },
-                { x: c1x, y: c1y },
-                { x: c2x, y: c2y },
-                { x: dx, y: dy },
-            ] = this.activeCurve;
-            return `M${x} ${y}C${c1x} ${c1y} ${c2x} ${c2y} ${dx} ${dy}`;
-        }
-    }
-
-    private renderRoughPathString() {
-        return this.path.map(({ x, y }, i) => (i === 0 ? `M${x} ${y}` : `L${x} ${y}`)).join("");
-    }
-
-    private renderAltPathString() {
-        const path = this.path.slice();
-        const t = 10;
-        if (path.length > t + 1) {
-            // 随机去掉一部分，再计算 fit curve
-            const badguys = path.slice(1, path.length - t);
-            for (let i = 0; i < 3; ++i) {
-                badguys.splice(~~(Math.random() * badguys.length), 1);
-            }
-            path.splice(1, path.length - t, ...badguys);
-        }
-        const [curves] = fitCurve(path, this.maxError);
-        const parts: string[] = [];
-        for (let i = 0; i < curves.length; ++i) {
-            const [{ x, y }, { x: c1x, y: c1y }, { x: c2x, y: c2y }, { x: dx, y: dy }] = curves[i];
-            if (i === 0) parts.push(`M${x} ${y}`);
-            parts.push(`C${c1x} ${c1y} ${c2x} ${c2y} ${dx} ${dy}`);
-        }
-        return parts.join("");
-    }
-
-    private renderPoints() {
-        return this.curves.map((a, i) => {
-            const { x, y } = a[3];
-            return <circle key={i} cx={x} cy={y} r={3} fill="transparent" stroke="red"></circle>;
-        });
-    }
-
-    public render() {
+    render() {
+        const { size } = this.props;
+        const { type, points } = this.state;
         return (
-            <svg
-                stroke="#000000"
-                strokeWidth={2}
-                strokeLinecap="round"
-                fill="transparent"
-                width={this.width}
-                height={this.height}
-            >
-                <path d={this.renderCurvesPathString()}></path>
-                {this._lastPathType === "alt" ? (
-                    <path
-                        stroke={this.showPoints ? "#0000ff" : "black"}
-                        d={this.renderAltPathString()}
-                    ></path>
-                ) : this._lastPathType === "curve" ? (
-                    <path
-                        stroke={this.showPoints ? "#007fff" : "black"}
-                        d={this.renderActivePathString()}
-                    ></path>
-                ) : (
-                    <path
-                        stroke={this.showPoints ? "#ff0000" : "#black"}
-                        d={this.renderRoughPathString()}
-                    ></path>
-                )}
+            <>
+                <svg
+                    stroke="#000000"
+                    fill="transparent"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    width={size.width}
+                    height={size.height}
+                >
+                    <text x={20} y={30} className="info">
+                        {points.length}
+                    </text>
 
-                {this.showPoints && this.renderPoints()}
-            </svg>
+                    {points.length > 0 && this.renderLine()}
+                </svg>
+                <div className="ctrl">
+                    <input
+                        type="checkbox"
+                        id="ctrl"
+                        checked={type === "Q"}
+                        onChange={this.switchType}
+                    />
+                    <label htmlFor="ctrl">type: {type}</label>
+                </div>
+            </>
         );
+    }
+
+    switchType = () => {
+        this.setState({ type: this.state.type === "L" ? "Q" : "L" });
+    };
+
+    renderLine() {
+        const { points, type } = this.state;
+        if (points.length < 2) return null;
+
+        if (type === "L") {
+            return (
+                <path d={points.map(({ x, y }, i) => `${i === 0 ? "M" : "L"}${x} ${y}`).join("")} />
+            );
+        }
+
+        const parts = [`M${points[0].x} ${points[0].y}`];
+
+        // 1. Line to mid(p0 -> p1)
+        const mid0 = mid(points[0], points[1]);
+        parts.push(`L${mid0.x} ${mid0.y}`);
+
+        // 2. Q to mid(p1 -> p2), ctrl = p1
+        for (let i = 1; i + 1 < points.length; i += 1) {
+            let ctrl = points[i];
+            let to = mid(ctrl, points[i + 1]);
+            parts.push(`Q${ctrl.x} ${ctrl.y}, ${to.x} ${to.y}`);
+        }
+        // 3. Line to last point
+        const last = points[points.length - 1];
+        parts.push(`L${last.x} ${last.y}`);
+
+        return <path d={parts.join("\n")} />;
     }
 }
 
-export function usePencil() {
-    const [, forceUpdate] = useState(0);
-    return useState(() => new Pencil(() => forceUpdate((e) => ~e)))[0];
+interface Point {
+    x: number;
+    y: number;
+}
+
+function mid(p1: Point, p2: Point): Point {
+    return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
 }
