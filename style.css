@@ -9,21 +9,43 @@
     background-color: white;
 }
 
-text.info {
+.container > svg {
+    position: absolute;
+}
+
+svg path {
+    transition: d 200ms;
+}
+
+.info {
+    position: fixed;
+    top: 4ch;
+    left: 4ch;
     user-select: none;
+    pointer-events: none;
 }
 
 .ctrl {
     position: absolute;
+    max-width: 300px;
     right: 2ch;
     top: 2ch;
     font-family: Consolas, monospace;
     user-select: none;
     display: flex;
+    flex-flow: row wrap;
     align-items: center;
     gap: 5px;
     background-color: #ddd;
     border: 1px solid #777;
-    padding: 1ch 2ch 1ch 1ch;
+    padding: 1ch 2ch;
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) inset;
+}
+
+.ctrl label {
+    min-width: 100px;
+}
+
+.line-wrap {
+    flex-basis: 100%;
 }
